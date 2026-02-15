@@ -119,6 +119,7 @@ func cmdBackfill(ctx context.Context, log logx.Logger, client lastfm.Client, s *
 	totalPages := -1
 	inserted := 0
 	ignored := 0
+	lastProgress := time.Now()
 
 	for {
 		p, err := client.GetRecentTracksPage(ctx, page, limit)
@@ -160,6 +161,10 @@ func cmdBackfill(ctx context.Context, log logx.Logger, client lastfm.Client, s *
 		}
 
 		log.Debugf("backfill: page %d/%d (inserted=%d ignored=%d)", page, totalPages, inserted, ignored)
+		if !log.Verbose && time.Since(lastProgress) > 15*time.Second {
+			log.Infof("backfill: page %d/%d (inserted=%d ignored=%d)", page, totalPages, inserted, ignored)
+			lastProgress = time.Now()
+		}
 
 		if totalPages != -1 && page >= totalPages {
 			break
@@ -185,6 +190,7 @@ func cmdSync(ctx context.Context, log logx.Logger, client lastfm.Client, s *stor
 	inserted := 0
 	ignored := 0
 	stop := false
+	lastProgress := time.Now()
 
 	for {
 		p, err := client.GetRecentTracksPage(ctx, page, limit)
@@ -224,6 +230,10 @@ func cmdSync(ctx context.Context, log logx.Logger, client lastfm.Client, s *stor
 		}
 
 		log.Debugf("sync: page %d (inserted=%d ignored=%d)", page, inserted, ignored)
+		if !log.Verbose && time.Since(lastProgress) > 15*time.Second {
+			log.Infof("sync: page %d (inserted=%d ignored=%d)", page, inserted, ignored)
+			lastProgress = time.Now()
+		}
 		if stop {
 			break
 		}
