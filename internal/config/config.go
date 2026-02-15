@@ -58,4 +58,3 @@ func FromFlags(args []string, req Requirements) (Config, error) {
 
 	return c, nil
 }
-

@@ -43,7 +43,6 @@ Defaults to:
 - `${XDG_DATA_HOME:-~/.local/share}/lastfm-golang/`
   - `scrobbles.raw.jsonl`
   - `lastfm.sqlite`
-  - `state.json`
 
 Override with `--data-dir`.
 

@@ -84,7 +84,7 @@ func (s *Store) Close() error {
 }
 
 type RawEnvelope struct {
-	FetchedAt time.Time   `json:"fetched_at"`
+	FetchedAt time.Time    `json:"fetched_at"`
 	Track     lastfm.Track `json:"track"`
 }
 

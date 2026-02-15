@@ -138,15 +138,17 @@ func cmdBackfill(ctx context.Context, log logx.Logger, client lastfm.Client, s *
 		}
 
 		for _, t := range p.Tracks {
-			// Always store raw first; it lets us reprocess later.
-			if err := s.AppendRaw(t); err != nil {
-				fmt.Fprintln(os.Stderr, "error:", err)
-				return 1
-			}
 			res, err := s.InsertScrobble(ctx, t)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "error:", err)
 				return 1
+			}
+			if res.Inserted > 0 {
+				// Store raw once per unique scrobble; avoids ballooning JSONL on reruns.
+				if err := s.AppendRaw(t); err != nil {
+					fmt.Fprintln(os.Stderr, "error:", err)
+					return 1
+				}
 			}
 			inserted += res.Inserted
 			ignored += res.Ignored
@@ -156,7 +158,7 @@ func cmdBackfill(ctx context.Context, log logx.Logger, client lastfm.Client, s *
 			return 1
 		}
 
-		log.Infof("backfill: page %d/%d (inserted=%d ignored=%d)", page, totalPages, inserted, ignored)
+		log.Debugf("backfill: page %d/%d (inserted=%d ignored=%d)", page, totalPages, inserted, ignored)
 
 		if totalPages != -1 && page >= totalPages {
 			break
@@ -194,14 +196,16 @@ func cmdSync(ctx context.Context, log logx.Logger, client lastfm.Client, s *stor
 		}
 
 		for _, t := range p.Tracks {
-			if err := s.AppendRaw(t); err != nil {
-				fmt.Fprintln(os.Stderr, "error:", err)
-				return 1
-			}
 			res, err := s.InsertScrobble(ctx, t)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "error:", err)
 				return 1
+			}
+			if res.Inserted > 0 {
+				if err := s.AppendRaw(t); err != nil {
+					fmt.Fprintln(os.Stderr, "error:", err)
+					return 1
+				}
 			}
 			inserted += res.Inserted
 			ignored += res.Ignored
@@ -218,7 +222,7 @@ func cmdSync(ctx context.Context, log logx.Logger, client lastfm.Client, s *stor
 			return 1
 		}
 
-		log.Infof("sync: page %d (inserted=%d ignored=%d)", page, inserted, ignored)
+		log.Debugf("sync: page %d (inserted=%d ignored=%d)", page, inserted, ignored)
 		if stop {
 			break
 		}
