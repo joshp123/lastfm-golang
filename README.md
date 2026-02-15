@@ -5,7 +5,8 @@ A tiny CLI to dump your Last.fm scrobble history locally (raw JSONL + SQLite), t
 ## Install
 
 ```bash
-go install github.com/joshp123/lastfm-golang@latest
+# install from the main package
+go install github.com/joshp123/lastfm-golang/cmd/lastfm-golang@latest
 ```
 
 ## Quick start
