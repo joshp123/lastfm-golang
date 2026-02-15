@@ -25,6 +25,24 @@ func (c Client) httpClient() *http.Client {
 	return &http.Client{Timeout: 30 * time.Second}
 }
 
+type HTTPError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e HTTPError) Error() string {
+	return fmt.Sprintf("lastfm http %d: %s", e.StatusCode, e.Body)
+}
+
+type APIError struct {
+	Code    int
+	Message string
+}
+
+func (e APIError) Error() string {
+	return fmt.Sprintf("lastfm api error %d: %s", e.Code, e.Message)
+}
+
 type RecentTracksResponse struct {
 	RecentTracks struct {
 		Track []Track `json:"track"`
@@ -99,7 +117,7 @@ func (c Client) GetRecentTracksPage(ctx context.Context, page, limit int) (Page,
 		return Page{}, err
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return Page{}, fmt.Errorf("lastfm http %d: %s", resp.StatusCode, string(b))
+		return Page{}, HTTPError{StatusCode: resp.StatusCode, Body: string(b)}
 	}
 
 	var r RecentTracksResponse
@@ -107,7 +125,7 @@ func (c Client) GetRecentTracksPage(ctx context.Context, page, limit int) (Page,
 		return Page{}, fmt.Errorf("decode lastfm response: %w", err)
 	}
 	if r.Error != 0 {
-		return Page{}, fmt.Errorf("lastfm api error %d: %s", r.Error, r.Message)
+		return Page{}, APIError{Code: r.Error, Message: r.Message}
 	}
 
 	p := Page{Tracks: r.RecentTracks.Track}

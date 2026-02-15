@@ -122,7 +122,7 @@ func cmdBackfill(ctx context.Context, log logx.Logger, client lastfm.Client, s *
 	lastProgress := time.Now()
 
 	for {
-		p, err := client.GetRecentTracksPage(ctx, page, limit)
+		p, err := getPageWithRetry(ctx, log, client, page, limit)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			return 1
@@ -193,7 +193,7 @@ func cmdSync(ctx context.Context, log logx.Logger, client lastfm.Client, s *stor
 	lastProgress := time.Now()
 
 	for {
-		p, err := client.GetRecentTracksPage(ctx, page, limit)
+		p, err := getPageWithRetry(ctx, log, client, page, limit)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			return 1
@@ -254,6 +254,29 @@ func cmdVerify(ctx context.Context, log logx.Logger, s *store.Store) int {
 	_ = log // reserved for future diagnostics
 	fmt.Fprintf(os.Stdout, "scrobbles: count=%d min_uts=%d max_uts=%d\n", count, minUTS, maxUTS)
 	return 0
+}
+
+func getPageWithRetry(ctx context.Context, log logx.Logger, client lastfm.Client, page, limit int) (lastfm.Page, error) {
+	const maxAttempts = 8
+	backoff := 1 * time.Second
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		p, err := client.GetRecentTracksPage(ctx, page, limit)
+		if err == nil {
+			return p, nil
+		}
+		if !lastfm.IsRetryable(err) || attempt == maxAttempts {
+			return lastfm.Page{}, err
+		}
+
+		log.Infof("retry: page %d attempt %d/%d: %v", page, attempt, maxAttempts, err)
+		time.Sleep(backoff)
+		if backoff < 30*time.Second {
+			backoff *= 2
+		}
+	}
+
+	return lastfm.Page{}, fmt.Errorf("unreachable")
 }
 
 func parseI64(s string) (int64, error) {
