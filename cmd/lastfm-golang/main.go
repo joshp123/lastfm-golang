@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"strconv"
@@ -246,13 +247,41 @@ func cmdSync(ctx context.Context, log logx.Logger, client lastfm.Client, s *stor
 }
 
 func cmdVerify(ctx context.Context, log logx.Logger, s *store.Store) int {
+	_ = log // reserved for future diagnostics
+
+	const minSaneUTS = 946684800 // 2000-01-01; Last.fm can return 1970 placeholders for unknown timestamps.
+
 	count, minUTS, maxUTS, err := s.Stats(ctx)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		return 1
 	}
-	_ = log // reserved for future diagnostics
-	fmt.Fprintf(os.Stdout, "scrobbles: count=%d min_uts=%d max_uts=%d\n", count, minUTS, maxUTS)
+
+	var suspectCount int64
+	if err := s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM scrobbles WHERE played_at_uts < ?`, minSaneUTS).Scan(&suspectCount); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		return 1
+	}
+
+	var datedCount int64
+	var datedMin sql.NullInt64
+	var datedMax sql.NullInt64
+	if err := s.DB.QueryRowContext(ctx, `SELECT COUNT(*), MIN(played_at_uts), MAX(played_at_uts) FROM scrobbles WHERE played_at_uts >= ?`, minSaneUTS).Scan(&datedCount, &datedMin, &datedMax); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		return 1
+	}
+
+	fmt.Fprintf(
+		os.Stdout,
+		"scrobbles_total=%d scrobbles_dated=%d scrobbles_suspect=%d min_uts=%d max_uts=%d dated_min_uts=%d dated_max_uts=%d\n",
+		count,
+		datedCount,
+		suspectCount,
+		minUTS,
+		maxUTS,
+		nullI64(datedMin),
+		nullI64(datedMax),
+	)
 	return 0
 }
 
@@ -277,6 +306,13 @@ func getPageWithRetry(ctx context.Context, log logx.Logger, client lastfm.Client
 	}
 
 	return lastfm.Page{}, fmt.Errorf("unreachable")
+}
+
+func nullI64(v sql.NullInt64) int64 {
+	if !v.Valid {
+		return 0
+	}
+	return v.Int64
 }
 
 func parseI64(s string) (int64, error) {

@@ -56,4 +56,5 @@ Override with `--data-dir`.
 
 - This uses Last.fm `user.getRecentTracks`.
 - "Now playing" items are ignored (they have no `date.uts`).
+- Some historic scrobbles may have placeholder 1970 timestamps from Last.fm; `verify` reports these as `scrobbles_suspect`.
 - Inserts are idempotent via a stable `source_hash` unique key.
