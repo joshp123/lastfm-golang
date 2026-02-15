@@ -11,11 +11,17 @@ go install github.com/joshp123/lastfm-golang/cmd/lastfm-golang@latest
 
 ## Quick start
 
-Set env:
+Set env (or use `--env-file`):
 
 ```bash
 export LASTFM_API_KEY="..."
 export LASTFM_USERNAME="joshpalmer"
+```
+
+Or:
+
+```bash
+lastfm-golang backfill --env-file /path/to/lastfm.env
 ```
 
 Backfill everything (can take a while):

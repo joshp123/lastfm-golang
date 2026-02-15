@@ -100,11 +100,12 @@ Commands:
   version    Print version
 
 Flags (common):
+  --env-file <path>         Load env vars from a file (or set LASTFM_ENV_FILE)
   --api-key <key>           Last.fm API key (or set LASTFM_API_KEY)
   --shared-secret <secret>  Last.fm shared secret (optional; or set LASTFM_SHARED_SECRET)
   --user <username>         Last.fm username (or set LASTFM_USERNAME)
   --data-dir <path>         Data directory (default: XDG data dir)
-  --verbose                 Verbose logging
+  --verbose                 Verbose logging (prints per-page progress)
   --user-agent <ua>         HTTP User-Agent
 
 Help:
