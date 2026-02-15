@@ -23,5 +23,20 @@
           drv = self.packages.${system}.default;
         };
       }
-    );
+    )
+    // {
+      # nix-openclaw plugin contract.
+      # See: https://github.com/openclaw/nix-openclaw#plugins
+      openclawPlugin = system: {
+        name = "lastfm";
+        skills = [ ./skills/lastfm ];
+        packages = [ self.packages.${system}.default ];
+        needs = {
+          # Ensure data dir exists on the host.
+          stateDirs = [ ".local/share/lastfm-golang" ];
+          # Path to env file; required to run backfill/sync.
+          requiredEnv = [ "LASTFM_ENV_FILE" ];
+        };
+      };
+    };
 }
