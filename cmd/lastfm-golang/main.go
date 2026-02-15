@@ -236,7 +236,8 @@ func cmdVerify(ctx context.Context, log logx.Logger, s *store.Store) int {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		return 1
 	}
-	log.Infof("scrobbles: count=%d min_uts=%d max_uts=%d", count, minUTS, maxUTS)
+	_ = log // reserved for future diagnostics
+	fmt.Fprintf(os.Stdout, "scrobbles: count=%d min_uts=%d max_uts=%d\n", count, minUTS, maxUTS)
 	return 0
 }
 
