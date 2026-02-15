@@ -1,0 +1,14 @@
+# binaries
+/lastfm-golang
+/dist/
+
+# local data (if you run with --data-dir .)
+/data/
+
+# editor
+.DS_Store
+.vscode/
+.idea/
+
+# go
+*.test
