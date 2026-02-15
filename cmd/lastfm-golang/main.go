@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/joshp123/lastfm-golang/internal/config"
+	"github.com/joshp123/lastfm-golang/internal/digest"
 	"github.com/joshp123/lastfm-golang/internal/lastfm"
 	"github.com/joshp123/lastfm-golang/internal/logx"
 	"github.com/joshp123/lastfm-golang/internal/store"
@@ -49,7 +50,7 @@ func run(args []string) int {
 	case "backfill", "sync":
 		req.RequireAPIKey = true
 		req.RequireUsername = true
-	case "verify":
+	case "verify", "digest":
 		// local only
 	default:
 		fmt.Fprintln(os.Stderr, "error: unknown command:", cmd)
@@ -81,6 +82,8 @@ func run(args []string) int {
 		return cmdSync(ctx, log, client, s)
 	case "verify":
 		return cmdVerify(ctx, log, s)
+	case "digest":
+		return cmdDigest(ctx, log, s)
 	default:
 		fmt.Fprintln(os.Stderr, "error: unknown command:", cmd)
 		usage(os.Stderr)
@@ -98,6 +101,7 @@ Commands:
   backfill   Fetch all scrobbles and store (raw JSONL + SQLite)
   sync       Fetch new scrobbles since the last run
   verify     Print basic DB stats
+  digest     Print an LLM-friendly JSON digest (recent + top + yearly)
   version    Print version
 
 Flags (common):
@@ -282,6 +286,27 @@ func cmdVerify(ctx context.Context, log logx.Logger, s *store.Store) int {
 		nullI64(datedMin),
 		nullI64(datedMax),
 	)
+	return 0
+}
+
+func cmdDigest(ctx context.Context, log logx.Logger, s *store.Store) int {
+	_ = log // reserved for future diagnostics
+
+	opt := digest.DefaultOptions()
+	out, err := digest.Build(ctx, s.DB, opt)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		return 1
+	}
+	b, err := digest.EncodeJSON(out, false)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		return 1
+	}
+	if _, err := os.Stdout.Write(append(b, '\n')); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		return 1
+	}
 	return 0
 }
 
