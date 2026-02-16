@@ -2,13 +2,10 @@ package lastfm
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
-	"time"
 )
 
 type Client struct {
@@ -16,13 +13,6 @@ type Client struct {
 	Username  string
 	UserAgent string
 	HTTP      *http.Client
-}
-
-func (c Client) httpClient() *http.Client {
-	if c.HTTP != nil {
-		return c.HTTP
-	}
-	return &http.Client{Timeout: 30 * time.Second}
 }
 
 type HTTPError struct {
@@ -91,38 +81,12 @@ func (c Client) GetRecentTracksPage(ctx context.Context, page, limit int) (Page,
 	q := url.Values{}
 	q.Set("method", "user.getrecenttracks")
 	q.Set("user", c.Username)
-	q.Set("api_key", c.APIKey)
-	q.Set("format", "json")
 	q.Set("limit", strconv.Itoa(limit))
 	q.Set("page", strconv.Itoa(page))
 
-	u := url.URL{Scheme: "https", Host: "ws.audioscrobbler.com", Path: "/2.0/", RawQuery: q.Encode()}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
-	if err != nil {
-		return Page{}, err
-	}
-	if c.UserAgent != "" {
-		req.Header.Set("User-Agent", c.UserAgent)
-	}
-
-	resp, err := c.httpClient().Do(req)
-	if err != nil {
-		return Page{}, err
-	}
-	defer resp.Body.Close()
-
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return Page{}, err
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return Page{}, HTTPError{StatusCode: resp.StatusCode, Body: string(b)}
-	}
-
 	var r RecentTracksResponse
-	if err := json.Unmarshal(b, &r); err != nil {
-		return Page{}, fmt.Errorf("decode lastfm response: %w", err)
+	if err := c.doGet(ctx, q, &r); err != nil {
+		return Page{}, err
 	}
 	if r.Error != 0 {
 		return Page{}, APIError{Code: r.Error, Message: r.Message}

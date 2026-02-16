@@ -22,6 +22,16 @@ Run:
 lastfm-golang digest
 ```
 
+## Discovery: recommend (LLM-friendly JSON)
+
+Run:
+
+```bash
+lastfm-golang recommend
+```
+
+This returns candidate tracks (from Last.fm similar artists + top tracks), annotated with your local play counts.
+
 - stdout: JSON (safe to parse and feed back into the model)
 - stderr: logs / diagnostics
 
