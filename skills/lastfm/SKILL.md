@@ -32,6 +32,12 @@ lastfm-golang recommend
 
 This returns candidate tracks (from Last.fm similar artists + top tracks), annotated with your local play counts.
 
+Unix-friendly (no JSON parsing): output TSV `artist<TAB>track`:
+
+```bash
+lastfm-golang recommend --format tsv
+```
+
 - stdout: JSON (safe to parse and feed back into the model)
 - stderr: logs / diagnostics
 

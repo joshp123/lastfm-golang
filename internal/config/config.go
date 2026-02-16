@@ -21,6 +21,9 @@ type Config struct {
 	DataDir   string
 	Verbose   bool
 	UserAgent string
+
+	Format string
+	Pretty bool
 }
 
 type Requirements struct {
@@ -40,6 +43,8 @@ func FromFlags(args []string, req Requirements) (Config, error) {
 	fs.BoolVar(&c.Verbose, "verbose", false, "Verbose logging")
 	fs.StringVar(&c.DataDir, "data-dir", "", "Data directory (default: XDG data dir)")
 	fs.StringVar(&c.UserAgent, "user-agent", "lastfm-golang/0 (github.com/joshp123/lastfm-golang)", "HTTP User-Agent")
+	fs.StringVar(&c.Format, "format", "", "Output format for digest/recommend (json|tsv)")
+	fs.BoolVar(&c.Pretty, "pretty", false, "Pretty-print JSON output")
 
 	if err := fs.Parse(args); err != nil {
 		return Config{}, err

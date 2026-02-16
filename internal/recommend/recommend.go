@@ -87,6 +87,7 @@ func Build(ctx context.Context, db *sql.DB, client lastfm.Client, opt Options) (
 	}
 
 	type agg struct {
+		name  string
 		score float64
 		from  map[string]bool
 	}
@@ -109,8 +110,11 @@ func Build(ctx context.Context, db *sql.DB, client lastfm.Client, opt Options) (
 			k := strings.ToLower(name)
 			cur := artistsAgg[k]
 			if cur == nil {
-				cur = &agg{from: map[string]bool{}}
+				cur = &agg{name: name, from: map[string]bool{}}
 				artistsAgg[k] = cur
+			}
+			if cur.name == "" {
+				cur.name = name
 			}
 			cur.score += m
 			cur.from[seed.Artist] = true
@@ -120,13 +124,13 @@ func Build(ctx context.Context, db *sql.DB, client lastfm.Client, opt Options) (
 	}
 
 	artistCands := make([]ArtistCand, 0, len(artistsAgg))
-	for k, v := range artistsAgg {
+	for _, v := range artistsAgg {
 		from := make([]string, 0, len(v.from))
 		for s := range v.from {
 			from = append(from, s)
 		}
 		sort.Strings(from)
-		artistCands = append(artistCands, ArtistCand{Artist: k, Score: v.score, FromSeedArtists: from})
+		artistCands = append(artistCands, ArtistCand{Artist: v.name, Score: v.score, FromSeedArtists: from})
 	}
 	sort.SliceStable(artistCands, func(i, j int) bool { return artistCands[i].Score > artistCands[j].Score })
 	if len(artistCands) > opt.SimilarArtistsLimit {
@@ -141,7 +145,7 @@ func Build(ctx context.Context, db *sql.DB, client lastfm.Client, opt Options) (
 	// Expand to top tracks.
 	tracks := []TrackCand{}
 	seenTracks := map[string]bool{}
-	stmtStats, err := db.PrepareContext(ctx, `SELECT COUNT(*), COALESCE(MAX(played_at_uts),0) FROM scrobbles WHERE played_at_uts >= ? AND artist_name = ? AND track_name = ?`)
+	stmtStats, err := db.PrepareContext(ctx, `SELECT COUNT(*), COALESCE(MAX(played_at_uts),0) FROM scrobbles WHERE played_at_uts >= ? AND artist_name = ? COLLATE NOCASE AND track_name = ? COLLATE NOCASE`)
 	if err != nil {
 		return Output{}, err
 	}

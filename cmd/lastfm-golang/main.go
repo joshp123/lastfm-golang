@@ -87,10 +87,10 @@ func run(args []string) int {
 	case "verify":
 		return cmdVerify(ctx, log, s)
 	case "digest":
-		return cmdDigest(ctx, log, s)
+		return cmdDigest(ctx, log, c, s)
 	case "recommend":
 		client := lastfm.Client{APIKey: c.APIKey, UserAgent: c.UserAgent}
-		return cmdRecommend(ctx, log, client, s)
+		return cmdRecommend(ctx, log, c, client, s)
 	default:
 		fmt.Fprintln(os.Stderr, "error: unknown command:", cmd)
 		usage(os.Stderr)
@@ -120,6 +120,8 @@ Flags (common):
   --data-dir <path>         Data directory (default: XDG data dir)
   --verbose                 Verbose logging (prints per-page progress)
   --user-agent <ua>         HTTP User-Agent
+  --format <fmt>            Output format for digest/recommend (json|tsv)
+  --pretty                  Pretty-print JSON output
 
 Help:
   lastfm-golang --help
@@ -297,8 +299,13 @@ func cmdVerify(ctx context.Context, log logx.Logger, s *store.Store) int {
 	return 0
 }
 
-func cmdDigest(ctx context.Context, log logx.Logger, s *store.Store) int {
+func cmdDigest(ctx context.Context, log logx.Logger, c config.Config, s *store.Store) int {
 	_ = log // reserved for future diagnostics
+
+	if c.Format != "" && c.Format != "json" {
+		fmt.Fprintln(os.Stderr, "error: digest only supports --format json")
+		return 2
+	}
 
 	opt := digest.DefaultOptions()
 	out, err := digest.Build(ctx, s.DB, opt)
@@ -306,7 +313,7 @@ func cmdDigest(ctx context.Context, log logx.Logger, s *store.Store) int {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		return 1
 	}
-	b, err := digest.EncodeJSON(out, false)
+	b, err := digest.EncodeJSON(out, c.Pretty)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		return 1
@@ -318,8 +325,13 @@ func cmdDigest(ctx context.Context, log logx.Logger, s *store.Store) int {
 	return 0
 }
 
-func cmdRecommend(ctx context.Context, log logx.Logger, client lastfm.Client, s *store.Store) int {
+func cmdRecommend(ctx context.Context, log logx.Logger, c config.Config, client lastfm.Client, s *store.Store) int {
 	_ = log // reserved for future diagnostics
+
+	format := c.Format
+	if format == "" {
+		format = "json"
+	}
 
 	opt := recommend.DefaultOptions()
 	out, err := recommend.Build(ctx, s.DB, client, opt)
@@ -327,16 +339,29 @@ func cmdRecommend(ctx context.Context, log logx.Logger, client lastfm.Client, s 
 		fmt.Fprintln(os.Stderr, "error:", err)
 		return 1
 	}
-	b, err := recommend.EncodeJSON(out, false)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		return 1
+
+	switch format {
+	case "json":
+		b, err := recommend.EncodeJSON(out, c.Pretty)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			return 1
+		}
+		if _, err := os.Stdout.Write(append(b, '\n')); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			return 1
+		}
+		return 0
+	case "tsv":
+		// Unix-friendly: for piping into spotify search.
+		for _, t := range out.Tracks {
+			fmt.Fprintf(os.Stdout, "%s\t%s\n", t.Artist, t.Track)
+		}
+		return 0
+	default:
+		fmt.Fprintln(os.Stderr, "error: invalid --format for recommend (expected json|tsv)")
+		return 2
 	}
-	if _, err := os.Stdout.Write(append(b, '\n')); err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		return 1
-	}
-	return 0
 }
 
 func getPageWithRetry(ctx context.Context, log logx.Logger, client lastfm.Client, page, limit int) (lastfm.Page, error) {
